@@ -1,0 +1,4 @@
+C:\Users\Strau\Documents\chess\server\MyApp\obj\Debug\net7.0\MyApp.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Strau\Documents\chess\server\MyApp\obj\Debug\net7.0\MyApp.AssemblyInfoInputs.cache
+C:\Users\Strau\Documents\chess\server\MyApp\obj\Debug\net7.0\MyApp.AssemblyInfo.cs
+C:\Users\Strau\Documents\chess\server\MyApp\obj\Debug\net7.0\MyApp.csproj.CoreCompileInputs.cache
