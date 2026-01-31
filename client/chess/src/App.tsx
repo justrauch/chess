@@ -93,7 +93,7 @@ export default function App() {
         </div>
       )}
 
-      <div>
+      <div >
         {/* ---------------- Fehlermeldung ---------------- */}
         {showError && (
           <span style={{ color: "red" }} data-testid="error-message">

@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import "./App.css";
 
-import Chessboard from "./chessboard";
+import Chessboard from "./Chessboard";
 
 export default function App() {
 
@@ -13,6 +13,7 @@ export default function App() {
     const [ShowPVE, setPVE] = useState(false);
     const [ShowMatch, setShowMatch] = useState(false);
     const [MyTurn, setMyTurn] = useState(false);
+    const [Color, setColor] = useState("");
     const [Message, setMessage] = useState("");
     const [Board, setBoard] = useState("");
     const [interplayersearch, setinterplayersearch] = useState<number | null>(null);
@@ -79,6 +80,7 @@ export default function App() {
             setShowMatch(true);
             setMyTurn(data.your_turn == "true");
             setBoard(data.game_state);
+            setColor(data.your_color)
 
             } catch (error) {
             console.error(`Error in handle Match`, error);
@@ -122,6 +124,7 @@ export default function App() {
         if (!interplayersearch) {
             const id = setInterval(() => {
                 handlegetQueueState();
+                handlegetGameState();
             }, 10000);
 
             setinterplayersearch(id);
@@ -143,13 +146,9 @@ export default function App() {
             <div>
                 {!ShowMatch && <button onClick={handleMatch}>Match suchen</button>}
                 {ShowMatch && <div>
-                    <Chessboard board = {Board}></Chessboard>
-                    {Message}
-                    {MyTurn && <p>Ich bin dran</p>}
-                    {!MyTurn && <p>Ich bin nicht dran</p>}
+                    <Chessboard board = {Board} mycolor = {Color} myturn = {MyTurn}></Chessboard>
                 </div>}
             </div>}
-            {ShowPVE && <div>Work in Progress</div>}
         </div>
     )
 }

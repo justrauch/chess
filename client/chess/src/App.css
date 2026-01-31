@@ -2,55 +2,46 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-direction: column;
   width: 100vw;
-  flex-direction: column; 
-}
-
-.form-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
+  height: 100vh;
+  gap: 20px;
 }
 
 .div-buttons {
+  display: flex;
   justify-content: center;
-  display: flex;
   gap: 10px;
-  margin-bottom: 10px;
-}
-
-.logout {
-  justify-content: right;
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.input-full {
-  width: 100%;
-  height: 40px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  font-size: 15px;
-  margin-bottom: 5px;
-}
-
-.form-row label {
-  width: 200px;
-}
-
-.form-row input {
-   flex: 1;
-}
-
-.myButton {
-  display: block;
-  margin-left: auto;
 }
 
 .box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
   border: 2px solid #333;
   border-radius: 8px;
-  padding: 8px 8px;
+  padding: 10px;
+}
+
+.flex-box-horizontal {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-row { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  margin-bottom: 10px; 
+  gap: 10px;
+}
+
+.myButton { 
+  display: block; 
+  margin-left: auto; 
 }

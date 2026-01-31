@@ -189,7 +189,8 @@ app.MapGet("/getGameState", async (HttpContext http, AppDbContext db) =>
         return Results.Ok(new 
         { 
             game_state = fen.Split(' ')[0], 
-            your_turn = yourTurn ? "true" : "false" 
+            your_turn = yourTurn ? "true" : "false",
+            your_color = match.white_id == userId ? "white" : "black"
         });
     }
     else
@@ -197,6 +198,183 @@ app.MapGet("/getGameState", async (HttpContext http, AppDbContext db) =>
         return Results.Ok(new { game_state = "", your_turn = "" });
     }
 });
+
+app.MapPost("/MakeMove", async (Move move, HttpContext http, AppDbContext db) =>
+{
+    // 1️⃣ User prüfen
+    var userIdStr = http.Session.GetString("UserId");
+    if (string.IsNullOrEmpty(userIdStr))
+        return Results.Unauthorized();
+
+    int userId = int.Parse(userIdStr);
+
+    var match = await db.Matches.FirstOrDefaultAsync(m => m.white_id == userId || m.black_id == userId);
+    if (match == null)
+        return Results.BadRequest(new { message = "Kein aktives Spiel gefunden!" });
+
+    // 2️⃣ GameState laden
+    var game = JsonSerializer.Deserialize<GameState>(match.game_state);
+    if (game == null)
+        return Results.BadRequest(new { message = "GameState konnte nicht geladen werden!" });
+
+    if (string.IsNullOrEmpty(game.fen)) return Results.BadRequest(new { message = match.game_state });
+
+    string fen = game.fen.Split(" ")[0]; // nur das Board
+    string[] fenRows = fen.Split("/");
+
+    // 3️⃣ Board als char[,] erstellen
+    char[,] board = new char[8, 8];
+    for (int y = 0; y < 8; y++)
+    {
+        int xIndex = 0;
+        foreach (var ch in fenRows[y])
+        {
+            if (char.IsDigit(ch))
+            {
+                int empty = int.Parse(ch.ToString());
+                for (int i = 0; i < empty; i++)
+                {
+                    board[y, xIndex++] = '-';
+                }
+            }
+            else
+            {
+                board[y, xIndex++] = ch;
+            }
+        }
+    }
+
+    // 4️⃣ Spielerfarbe prüfen
+    string playerColor = game.fen.Split(" ")[1]; // "w" oder "b"
+    if ((playerColor == "w" && match.black_id == userId) || (playerColor == "b" && match.white_id == userId))
+        return Results.Unauthorized();
+
+    // 5️⃣ Prüfen, ob Move gültig ist
+    bool IsPathClear(char[,] b, int x, int y, int xnew, int ynew)
+    {
+        int dx = xnew - x;
+        int dy = ynew - y;
+        int steps = Math.Max(Math.Abs(dx), Math.Abs(dy));
+        if (steps <= 1) return true;
+
+        int stepX = dx == 0 ? 0 : dx / Math.Abs(dx);
+        int stepY = dy == 0 ? 0 : dy / Math.Abs(dy);
+
+        for (int i = 1; i < steps; i++)
+        {
+            if (b[y + i * stepY, x + i * stepX] != '-')
+                return false;
+        }
+
+        return true;
+    }
+
+    bool IsValidMove(char[,] b, Move m)
+    {
+        char piece = b[m.y, m.x];
+        char target = b[m.ynew, m.xnew];
+
+        int movex = Math.Abs(m.xnew - m.x);
+        int movey = Math.Abs(m.ynew - m.y);
+
+        // Grenzen
+        if (m.xnew < 0 || m.xnew >= 8 || m.ynew < 0 || m.ynew >= 8)
+            return false;
+
+        // Eigenes Feld
+        if (target != '-' && char.IsUpper(target) == char.IsUpper(piece))
+            return false;
+
+        // Figuren-spezifische Regeln
+        switch (char.ToLower(piece))
+        {
+            case 'p': // Bauer
+                if (char.IsLower(piece))
+                {
+                    if (m.y == 1 && m.ynew == m.y + 2 && target == '-') return true;
+                    if (movex == 0 && m.ynew == m.y + 1 && target == '-') return true; // normal
+                    if (movex == 1 && m.ynew == m.y + 1 && target != '-' && char.IsUpper(target)) return true; // schlagen
+                }
+                else
+                {
+                    if (m.y == 6 && m.ynew == m.y - 2 && target == '-') return true;
+                    if (movex == 0 && m.ynew == m.y - 1 && target == '-') return true;
+                    if (movex == 1 && m.ynew == m.y - 1 && target != '-' && char.IsLower(target)) return true;
+                }
+                break;
+
+            case 'n': // Springer
+                if ((movex == 1 && movey == 2) || (movex == 2 && movey == 1)) return true;
+                break;
+
+            case 'r':
+            case 'b':
+            case 'q':
+            case 'k':
+                bool shapeValid = false;
+                switch (char.ToLower(piece))
+                {
+                    case 'r': shapeValid = (movex == 0 || movey == 0); break;
+                    case 'b': shapeValid = (movex == movey); break;
+                    case 'q': shapeValid = (movex == 0 || movey == 0 || movex == movey); break;
+                    case 'k': shapeValid = (movex <= 1 && movey <= 1); break;
+                }
+
+                if (shapeValid && IsPathClear(b, m.x, m.y, m.xnew, m.ynew)) return true;
+                break;
+        }
+
+        return false;
+    }
+
+    if (!IsValidMove(board, move))
+        return Results.Unauthorized();
+
+    char piece = board[move.y, move.x];
+
+    bool isPawnPromotion = (char.ToLower(piece) == 'p') &&
+                        ((piece == 'P' && move.ynew == 0 && playerColor == "w") ||
+                            (piece == 'p' && move.ynew == 7 && playerColor == "b"));
+
+    board[move.ynew, move.xnew] = isPawnPromotion && !string.IsNullOrEmpty(move.new_piece)
+        ? move.new_piece[0]
+        : piece;
+
+    board[move.y, move.x] = '-';
+
+    // Neues FEN bauen
+    string newFenBoard = string.Join("/", Enumerable.Range(0, 8).Select(y =>
+    {
+        int emptyCount = 0;
+        string fenRow = "";
+        for (int x = 0; x < 8; x++)
+        {
+            if (board[y, x] == '-')
+                emptyCount++;
+            else
+            {
+                if (emptyCount > 0) { fenRow += emptyCount; emptyCount = 0; }
+                fenRow += board[y, x];
+            }
+        }
+        if (emptyCount > 0) fenRow += emptyCount;
+        return fenRow;
+    }));
+
+    // Rest der FEN bleibt gleich
+    var fenParts = game.fen.Split(' ');
+    fenParts[0] = newFenBoard;
+    fenParts[1] = fenParts[1] == "w" ? "b" : "w";
+    string newFen = string.Join(' ', fenParts);
+
+    game.fen = newFen;
+    match.game_state = JsonSerializer.Serialize(game);
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { message = "Zug erfolgreich!" });
+});
+
 
 app.Run();
 
@@ -218,6 +396,23 @@ public class Match
     public string game_state { get; set; } = "{}";
     public string status { get; set; } = string.Empty; // z.B. "waiting", "active", "finished"
 }
+
+public class Move
+{
+    public int x { get; set; }
+    public int y { get; set; }
+    public int xnew { get; set; }
+    public int ynew { get; set; }
+    public string new_piece { get; set; } = string.Empty;
+}
+
+public class GameState
+{
+    public string fen { get; set; }
+    public List<object> moveHistory { get; set; }
+    public object lastMove { get; set; }
+}
+
 
 public class AppDbContext : DbContext
 {
