@@ -8,7 +8,7 @@ dotnet new console -n MyApp
 cd .\MyApp\
 dotnet new webapp -n MyWebApp
 
-
+chess images https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png (w -> color, k -> color, wk -> whiteKing, bq -> blackQueen)
 Start
 in vscode
 npm run dev

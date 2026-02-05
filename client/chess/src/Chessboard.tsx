@@ -29,6 +29,9 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
     const [grid, setGrid] = useState<Cell[][]>([]);
     const [Move, setMove] = useState<Move>();
 
+    const [Error, setError] = useState("");
+    const [ShowError, setShowError] = useState(false);
+
     // Hilfsfunktionen
     const isUpper = (c: string) => c === c.toUpperCase() && c !== c.toLowerCase();
     const isLower = (c: string) => c === c.toLowerCase() && c !== c.toUpperCase();
@@ -92,10 +95,12 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
 
             if (cell.piece === "p") {
                 // vor
-                if (y + 1 < 8 && !newGrid[y + 1][x].piece) newGrid[y + 1][x].highlight = "move";
-
-                //erster zug
-                if (y == 1) newGrid[y + 2][x].highlight = "move";
+                if (y + 1 < 8 && !newGrid[y + 1][x].piece) {
+                    //erster zug
+                    if (y == 1 && !newGrid[y + 2][x].piece) newGrid[y + 2][x].highlight = "move";
+                    
+                    newGrid[y + 1][x].highlight = "move";
+                }
 
                 if (y + 1 == 7 && !newGrid[y + 1][x].piece) newGrid[y + 1][x].highlight = "recruite";
 
@@ -122,10 +127,12 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
 
             else if (cell.piece === "P") {
                 //vor
-                if (y - 1 > 0 && !newGrid[y - 1][x].piece) newGrid[y - 1][x].highlight = "move";
+                if (y - 1 > 0 && !newGrid[y - 1][x].piece) {
+                    //erster zug
+                    if (y == 6 && !newGrid[y - 2][x].piece) newGrid[y - 2][x].highlight = "move";
 
-                //erster zug
-                if (y == 6) newGrid[y - 2][x].highlight = "move";
+                    newGrid[y - 1][x].highlight = "move";
+                }
 
                 // vor auf letztes Feld
                 if (y - 1 == 0 && !newGrid[y - 1][x].piece) newGrid[y - 1][x].highlight = "recruite";
@@ -343,7 +350,6 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
     };
 
     const MakeMove = (x: number, y: number, methode: string) => {
-        console.log("hallo");
         setMove({
             methode: methode,
             piece: Move?.piece!,
@@ -353,11 +359,14 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
             ynew: y,
             newpiece: "",
         });
-
+        setGrid(prev =>
+            prev.map(row => row.map(cell => ({ ...cell, highlight: "neutral" as Highlight })))
+        );
     }
 
     const SendMove = async () => {
         try {
+            setShowError(false);
             const response = await fetch(`http://localhost:5146/MakeMove`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -368,7 +377,15 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
             let data: any = {};
             try { data = await response.json(); } catch {}
 
-            if (!response.ok) return;
+            if (!response.ok){
+                setError(
+                    response.status === 409 || response.status === 401
+                        ? data.message || "Fehler"
+                        : "Serverfehler – bitte erneut versuchen"
+                );
+                setShowError(true);
+                return;
+            };
 
             console.log(data.message);
 
@@ -379,51 +396,91 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
 
     return (
         <div className="flex-box">
+            {ShowError && <p style={{color: "red"}}>{Error}</p>}
             <table>
                 <thead>
-                    <tr>
-                        <th></th>
-                        {Array.from({ length: 8 }, (_, i) => (
-                            <th key={i}>{i + 1}</th>
-                        ))}
-                    </tr>
                 </thead>
                 <tbody>
                     {grid.map((row, y) => (
                         <tr key={y}>
-                            <td>{String.fromCharCode("A".charCodeAt(0) + y)}</td>
+                            <td style={{textAlign: "center", width: 20, height: 40,}}>{8 - y}</td>
                             {row.map((cell, x) => (
                                 <td key={x}>
                                     <button
-                                        style={{
-                                            width: 40,
-                                            height: 40,
-                                            backgroundColor:
-                                                cell.highlight === "move"
-                                                    ? "blue"
-                                                    : cell.highlight === "capture"
-                                                    ? "green"
-                                                    : cell.highlight === "recruite"
-                                                    ? "orange"
-                                                    : cell.color === "white" ? "white" : "black",
-                                            color: cell.color === "white" ? "black" : "white",
-                                        }}
-                                        onClick={() => {
-                                            if (cell.highlight === "neutral" && !cell.piece) return;
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        backgroundColor:
+                                        cell.highlight === "move"
+                                            ? "blue"
+                                            : cell.highlight === "capture"
+                                            ? "green"
+                                            : cell.highlight === "recruite"
+                                            ? "orange"
+                                            : (y % 2 == 0 && x % 2 == 0) || (y % 2 == 1 && x % 2 == 1)
+                                            ? "white"
+                                            : "black"
+                                    }}
+                                    onClick={() => {
+                                        if (cell.highlight === "neutral" && !cell.piece) return;
 
-                                            if (cell.highlight === "neutral") {
-                                                ShowMoves(x, y);
-                                            } else {
-                                                MakeMove(x, y, cell.highlight);
-                                            }
-                                        }}
+                                        if (cell.highlight === "neutral") {
+                                        ShowMoves(x, y);
+                                        } else {
+                                        MakeMove(x, y, cell.highlight);
+                                        }
+                                    }}
                                     >
-                                        {cell.piece ?? ""}
+                                    {cell.piece === "p" && (
+                                        <img src="/src/bp.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "P" && (
+                                        <img src="/src/wp.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "n" && (
+                                        <img src="/src/bn.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "N" && (
+                                        <img src="/src/wn.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "r" && (
+                                        <img src="/src/br.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "R" && (
+                                        <img src="/src/wr.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "b" && (
+                                        <img src="/src/bb.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "B" && (
+                                        <img src="/src/wb.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "q" && (
+                                        <img src="/src/bq.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "Q" && (
+                                        <img src="/src/wq.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "k" && (
+                                        <img src="/src/bk.png" style={{ width: 40, height: 40 }} />
+                                    )}
+                                    {cell.piece === "K" && (
+                                        <img src="/src/wk.png" style={{ width: 40, height: 40 }} />
+                                    )}
                                     </button>
                                 </td>
                             ))}
                         </tr>
                     ))}
+                    <tr>
+                        <td></td>
+                        {Array.from({ length: 8 }, (_, i) => (
+                            <td style={{textAlign: "center"}} key={i}>{String.fromCharCode("A".charCodeAt(0) + i)}</td>
+                        ))}
+                    </tr>
                 </tbody>
             </table>
             {myturn && <div className="box">
@@ -431,11 +488,11 @@ export default function Chessboard({ board, mycolor, myturn }: ChessboardProps) 
                     <p>
                         Ziehe {(Move?.piece || "-") + " "} 
                         von {(Move?.y !== undefined ? 
-                        String.fromCharCode("A".charCodeAt(0) + (Move?.y || 0)) : "-") + "/"}
-                        {(Move?.x! + 1 || "-") + " "}
+                        String.fromCharCode("A".charCodeAt(0) + (Move?.x || 0)) : "-") + "/"}
+                        {(8 - Move?.y! || "-") + " "}
                         nach {(Move?.ynew !== undefined && Move?.ynew >= 0 ? 
-                        String.fromCharCode("A".charCodeAt(0) + (Move?.ynew || 0)) : "-") + "/"} 
-                        {(Move?.xnew !== undefined && Move?.xnew >= 0 ? Move?.xnew + 1 : "-")}
+                        String.fromCharCode("A".charCodeAt(0) + (Move?.xnew || 0)) : "-") + "/"} 
+                        {(Move?.ynew !== undefined && Move?.ynew >= 0 ? 8 - Move?.ynew : "-")}
                     </p>
                 </div >
                 {Move?.methode === "recruite" && <div className="flex-box-horizontal">

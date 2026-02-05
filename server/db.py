@@ -44,8 +44,11 @@ class Match(Base):
     white_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     black_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
+    white_active = Column(Boolean, default=True)
+    black_active = Column(Boolean, default=True)
+
     game_state = Column(JSON, nullable=False)
-    status = Column(String(20), default="active")  # active, finished, aborted
+    status = Column(String(20), default="Active")  # active, finished, aborted
     winner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     white_player = relationship("User", foreign_keys=[white_id], back_populates="white_matches")
