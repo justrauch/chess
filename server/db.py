@@ -41,8 +41,10 @@ class Match(Base):
 
     match_id = Column(Integer, primary_key=True)
 
+    IsPVP = Column(Boolean, default=True)
+
     white_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    black_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    black_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     white_active = Column(Boolean, default=True)
     black_active = Column(Boolean, default=True)
