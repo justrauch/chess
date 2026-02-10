@@ -22,6 +22,20 @@ dotnet new console -n MyApp
 cd ./MyApp/
 dotnet new webapp -n MyWebApp
 ```
+## Database Setup
+
+1. **Start MySQL in XAMPP**  
+   - Öffne XAMPP **als Administrator**.  
+   - Klicke auf **Start** bei MySQL.  
+
+2. **Start HeidiSQL**  
+   - Verbinde dich mit der laufenden MySQL-Instanz.  
+
+3. **Set up Database using Python**  
+```bash
+cd /server
+python db.py
+```
 
 ## Run the Project
 
